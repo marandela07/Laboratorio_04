@@ -1,0 +1,182 @@
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+// Universidad del Valle de Guatemala
+// Maryela Morales #23726
+// Electrónica Digital 02
+// 12/08/2025
+// LABORATORIO 04
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//librerías
+#include <Arduino.h>
+#include <stdint.h>
+#include <driver/ledc.h>
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//definición de pines
+//LEDs
+#define led_1 15
+#define led_2 2
+#define led_3 5
+//botones LEDs
+#define btnLED 13
+#define btnIntensidad 27
+//botones Servo
+#define btnIzq 33
+#define btnDerecha 34
+#define servo1 23
+
+//canal, frecuencia y resolución PWM para Servo
+#define channelPWM 3
+#define freqPWM 50
+#define resolucion 16
+
+//canales PWM para LEDs
+#define CH_LED1 0
+#define CH_LED2 1
+#define CH_LED3 2
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//variables globales
+int ledSeleccionado = 1; // LED seleccionado
+int intensidad1 = 0;
+int intensidad2 = 0;
+int intensidad3 = 0;
+
+bool estadoLED = false;        
+bool estadoIntensidad = false; 
+
+// Servo
+bool estadoIzq = false;
+bool estadoDer = false;
+volatile unsigned long interrupcionIzq = 0;
+volatile unsigned long interrupcionDer = 0;
+
+unsigned long rebote = 250;
+
+//posiciones del servo 
+uint32_t posiciones[] = { 1638, 3277, 4915, 6553, 8192 };
+uint8_t posicionServo = 0; // posición inicial
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//ISRS de interrupción
+void IRAM_ATTR mov_Izq() {
+  unsigned long tiempo = millis();
+  if (tiempo - interrupcionIzq > rebote) {
+    estadoIzq = true;
+    interrupcionIzq = tiempo;
+  }
+}
+
+void IRAM_ATTR mov_Der() {
+  unsigned long tiempo = millis();
+  if (tiempo - interrupcionDer > rebote) {
+    estadoDer = true;
+    interrupcionDer = tiempo;
+  }
+}
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//funciones
+void moverServo(uint8_t pos) {
+  ledcWrite(channelPWM, posiciones[pos]);
+}
+
+void actualizarLEDs() {
+  ledcWrite(CH_LED1, intensidad1);
+  ledcWrite(CH_LED2, intensidad2);
+  ledcWrite(CH_LED3, intensidad3);
+}
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//configuración 
+void setup() {
+  Serial.begin(115200);
+
+  //pines botones LEDs
+  pinMode(btnLED, INPUT_PULLUP);
+  pinMode(btnIntensidad, INPUT_PULLUP);
+
+  //pines botones Servo
+  pinMode(btnIzq, INPUT_PULLUP);
+  pinMode(btnDerecha, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(btnIzq), mov_Izq, FALLING);
+  attachInterrupt(digitalPinToInterrupt(btnDerecha), mov_Der, FALLING);
+
+  //PWM LEDs
+  ledcSetup(CH_LED1, 5000, 8);
+  ledcSetup(CH_LED2, 5000, 8);
+  ledcSetup(CH_LED3, 5000, 8);
+  ledcAttachPin(led_1, CH_LED1);
+  ledcAttachPin(led_2, CH_LED2);
+  ledcAttachPin(led_3, CH_LED3);
+
+  //inicializar LEDs apagados
+  ledcWrite(CH_LED1, 0);
+  ledcWrite(CH_LED2, 0);
+  ledcWrite(CH_LED3, 0);
+
+  //PWM Servo
+  ledcSetup(channelPWM, freqPWM, resolucion);
+  ledcAttachPin(servo1, channelPWM);
+
+ 
+  moverServo(posicionServo);
+}
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//loop
+void loop() {
+  //LEDS
+  bool lecturaLED = !digitalRead(btnLED); 
+  if (lecturaLED && !estadoLED) {
+    ledSeleccionado++;
+    if (ledSeleccionado > 3) ledSeleccionado = 1;
+    Serial.print("LED seleccionado: ");
+    Serial.println(ledSeleccionado);
+  }
+  estadoLED = lecturaLED;
+
+  bool lecturaIntensidad = !digitalRead(btnIntensidad);
+  if (lecturaIntensidad && !estadoIntensidad) {
+    if (ledSeleccionado == 1) {
+      intensidad1 += 85;
+      if (intensidad1 > 255) intensidad1 = 0;
+      Serial.print("Intensidad LED 1: ");
+      Serial.println(intensidad1);
+    } 
+    else if (ledSeleccionado == 2) {
+      intensidad2 += 85;
+      if (intensidad2 > 255) intensidad2 = 0;
+      Serial.print("Intensidad LED 2: ");
+      Serial.println(intensidad2);
+    } 
+    else if (ledSeleccionado == 3) {
+      intensidad3 += 85;
+      if (intensidad3 > 255) intensidad3 = 0;
+      Serial.print("Intensidad LED 3: ");
+      Serial.println(intensidad3);
+    }
+  }
+  estadoIntensidad = lecturaIntensidad;
+
+  actualizarLEDs();
+
+  //SERVO
+  if (estadoDer) {
+    if (posicionServo < 4) posicionServo++;
+    moverServo(posicionServo);
+    
+    Serial.print("Servo posición: ");
+    Serial.println(posicionServo);
+    estadoDer = false;
+  }
+  if (estadoIzq) {
+    if (posicionServo > 0) posicionServo--;
+    moverServo(posicionServo);
+    Serial.print("Servo posición: ");
+    Serial.println(posicionServo);
+    estadoIzq = false;
+  }
+
+  delay(150); 
+}
