@@ -1,0 +1,116 @@
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//Universidad del Valle de Guatemala
+//Maryela Morales #23726
+//Electrónica Digital 02
+//12/08/2025
+//LABORATORIO 04
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//librerías 
+#include <Arduino.h>
+#include <stdint.h>
+#include <driver/ledc.h>
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//definición de pines
+// Leds
+#define led_1 15
+#define led_2 2
+#define led_3 5
+// Botones leds
+#define btnLED 13
+#define btnIntensidad 27
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//prototipos de funciones
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//variables globales
+
+int ledSeleccionado = 1; //led seleccionado
+
+//intensidades independientes para cada LED
+int intensidad1 = 0;
+int intensidad2 = 0;
+int intensidad3 = 0;
+
+bool estadoLED = false;        // Estado previo botón selección LED
+bool estadoIntensidad = false; // Estado previo botón intensidad
+
+//canales PWM para cada LED
+#define CH_LED1 0
+#define CH_LED2 1
+#define CH_LED3 2
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//configuración 
+void setup(){
+  Serial.begin(115200);
+  pinMode(btnLED, INPUT_PULLUP);
+  pinMode(btnIntensidad, INPUT_PULLUP);
+
+  //configuración de PWM para cada LED
+  ledcSetup(CH_LED1, 5000, 8); // Canal, frecuencia, resolución 8 bits
+  ledcSetup(CH_LED2, 5000, 8);
+  ledcSetup(CH_LED3, 5000, 8);
+
+  //asignar canales
+  ledcAttachPin(led_1, CH_LED1);
+  ledcAttachPin(led_2, CH_LED2);
+  ledcAttachPin(led_3, CH_LED3);
+
+  //inicializar con LEDS apagados
+  ledcWrite(CH_LED1, 0);
+  ledcWrite(CH_LED2, 0);
+  ledcWrite(CH_LED3, 0);
+}
+
+//funcion para intensidad leds
+void actualizarLEDs() {
+  // Mantener cada LED con su intensidad actual
+  ledcWrite(CH_LED1, intensidad1);
+  ledcWrite(CH_LED2, intensidad2);
+  ledcWrite(CH_LED3, intensidad3);
+}
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//loop
+void loop() {
+  //cambio de leds
+  bool lecturaLED = !digitalRead(btnLED); 
+  if (lecturaLED && !estadoLED) {
+    ledSeleccionado++;
+    if (ledSeleccionado > 3) ledSeleccionado = 1;
+    Serial.print("LED seleccionado: ");
+    Serial.println(ledSeleccionado);
+}
+estadoLED = lecturaLED;
+
+  //cambio de intensidad
+  bool lecturaIntensidad = digitalRead(btnIntensidad);
+  if (lecturaIntensidad && !estadoIntensidad) {
+
+    if (ledSeleccionado == 1) {
+      intensidad1 += 85;
+      if (intensidad1 > 255) intensidad1 = 0;
+      Serial.print("Intensidad LED 1: ");
+      Serial.println(intensidad1);
+    } 
+    else if (ledSeleccionado == 2) {
+      intensidad2 += 85;
+      if (intensidad2 > 255) intensidad2 = 0;
+      Serial.print("Intensidad LED 2: ");
+      Serial.println(intensidad2);
+    } 
+    else if (ledSeleccionado == 3) {
+      intensidad3 += 85;
+      if (intensidad3 > 255) intensidad3 = 0;
+      Serial.print("Intensidad LED 3: ");
+      Serial.println(intensidad3);
+    }
+  }
+  estadoIntensidad = lecturaIntensidad;
+
+  actualizarLEDs();
+  delay(150); 
+}
